@@ -7,11 +7,12 @@ import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/types/BeforeSwapD
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {IAmpli} from "./interfaces/IAmpli.sol";
+import {IUnlockCallback} from "./interfaces/callbacks/IUnlockCallback.sol";
 import {Constants} from "./libraries/Constants.sol";
 import {DeflatorsLibrary} from "./libraries/DeflatorsLibrary.sol";
 import {ExchangeRateLibrary} from "./libraries/ExchangeRateLibrary.sol";
 import {LockLibrary} from "./libraries/LockLibrary.sol";
-import {PositionLibrary} from "./libraries/PositionLibrary.sol";
+import {PositionLibrary, Fungible} from "./libraries/PositionLibrary.sol";
 import {BaseHook, IPoolManager, Hooks, PoolKey, BalanceDelta} from "./modules/externals/BaseHook.sol";
 import {FungibleToken} from "./modules/FungibleToken.sol";
 import {NonFungibleTokenReceiver} from "./modules/NonFungibleTokenReceiver.sol";
@@ -73,6 +74,31 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
         s_positions[GLOBAL_POSITION_ID].open(address(this), address(0));
     }
 
+    function unlock(bytes calldata callbackData) external returns (bytes memory callbackResult) {
+        s_lock.unlock();
+
+        (uint256 sqrtPriceX96,,,) = s_poolManager.getSlot0(s_poolKey.toId());
+        _disburseInterest();
+        _adjustExchangeRate(sqrtPriceX96, false);
+
+        callbackResult = IUnlockCallback(msg.sender).unlockCallback(callbackData);
+
+        uint256[] memory exposedPositions = s_lock.exposedItems;
+        for (uint256 i = 0; i < exposedPositions.length; i++) {
+            PositionLibrary.Position storage s_position = s_positions[exposedPositions[i]];
+            (uint256 value, uint256 marginReq) =
+                s_position.appraise(this, Fungible.wrap(address(this)), s_exchangeRate.currentUD18);
+            uint256 debt = s_position.nominalDebt(s_deflators.interestAndFeeUD18);
+
+            if (value < marginReq + debt || debt > mulDiv18(value, maxDebtRatio())) {
+                revert PositionAtRisk(exposedPositions[i]);
+            }
+        }
+        delete s_lock.exposedItems;
+
+        s_lock.lock();
+    }
+
     function beforeAddLiquidity(
         address sender,
         PoolKey calldata key,
@@ -131,13 +157,15 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
     ) external override noDelegateCall poolManagerOnly returns (bytes4, int128) {
         if (sender != address(this)) {
             IPoolManager poolManager = s_poolManager;
-            (uint256 sqrtPriceX96,,,) = poolManager.getSlot0(key.toId());
+            (uint256 sqrtPriceX96,, uint24 protocolFee, uint24 lpFee) = poolManager.getSlot0(key.toId());
 
             if (sqrtPriceX96 <= Constants.ONE_Q96) {
-                params = IPoolManager.SwapParams(false, -delta.amount1(), Constants.MAX_SQRT_PRICE_Q96 - 1);
+                uint128 amount = _amountBeforeFee(_amountBeforeFee(uint128(delta.amount0()), lpFee), protocolFee);
+
+                params = IPoolManager.SwapParams(false, -int128(amount), Constants.MAX_SQRT_PRICE_Q96 - 1);
                 delta = poolManager.swap(s_poolKey, params, "");
 
-                _mint(address(poolManager), uint128(-delta.amount1()));
+                _mint(address(poolManager), amount);
                 poolManager.settle(Currency.wrap(address(this)));
                 poolManager.take(CurrencyLibrary.NATIVE, address(this), uint128(delta.amount0()));
 
@@ -153,11 +181,12 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
     function _disburseInterest() private {
         InterestMode interestMode = interestMode();
         uint256 exchangeRateUD18 = s_exchangeRate.currentUD18;
-        uint256 interestRateUD18 = (
+        uint256 annualInterestRateUD18 = (
             interestMode == InterestMode.Intensified
                 ? mulDiv18(exchangeRateUD18, exchangeRateUD18)
                 : (interestMode == InterestMode.Normal ? exchangeRateUD18 : sqrt(exchangeRateUD18))
         ) - Constants.ONE_UD18;
+        uint256 interestRateUD18 = annualInterestRateUD18 / Constants.SECONDS_PER_YEAR;
         (uint256 interestDeflatorGrowthUD18,) = s_deflators.grow(interestRateUD18, feeRate());
 
         if (interestDeflatorGrowthUD18 > 0) {
@@ -171,9 +200,17 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
     }
 
     function _adjustExchangeRate(uint256 sqrtPriceX96, bool hasSqrtPriceChanged) private {
-        uint256 targetExchangeRateUD18 = mulDiv(sqrtPriceX96, Constants.ONE_UD18, Constants.ONE_Q96);
+        uint256 targetExchangeRateUD18 =
+            mulDiv(mulDiv(sqrtPriceX96, sqrtPriceX96, Constants.ONE_Q96), Constants.ONE_UD18, Constants.ONE_Q96);
         assert(targetExchangeRateUD18 > Constants.ONE_UD18); // target exchange rate must always be greater than 1
 
         s_exchangeRate.adjust(targetExchangeRateUD18, hasSqrtPriceChanged, maxExchangeRateAdjRatio());
+    }
+
+    function _amountBeforeFee(uint128 amount, uint24 fee) private pure returns (uint128) {
+        uint256 amountBeforeFee = mulDiv(amount, Constants.ONE_PIPS, Constants.ONE_PIPS - fee) + 1;
+        assert(amountBeforeFee < type(uint128).max);
+
+        return uint128(amountBeforeFee);
     }
 }

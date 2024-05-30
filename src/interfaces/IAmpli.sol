@@ -5,4 +5,8 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {IERC721TokenReceiver} from "forge-std/interfaces/IERC721.sol";
 import {IRiskConfigs} from "./IRiskConfigs.sol";
 
-interface IAmpli is IERC20, IERC721TokenReceiver, IRiskConfigs {}
+interface IAmpli is IERC20, IERC721TokenReceiver, IRiskConfigs {
+    error PositionAtRisk(uint256 positionId);
+
+    function unlock(bytes calldata callbackData) external returns (bytes memory callbackResult);
+}
