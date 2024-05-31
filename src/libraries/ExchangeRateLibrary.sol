@@ -3,6 +3,7 @@ pragma solidity 0.8.24;
 
 import {mulDiv18} from "prb-math/Common.sol";
 
+/// @notice Library for working with exchange rate.
 library ExchangeRateLibrary {
     struct ExchangeRate {
         uint256 currentUD18;
@@ -10,8 +11,11 @@ library ExchangeRateLibrary {
         uint256 lastAdjTimestamp;
     }
 
+    /// @notice Thrown when trying to initialize an already initialized exchange rate.
     error ExchangeRateAlreadyInitialized();
 
+    /// @notice Initializes the exchange rate.
+    /// @param s_self The exchange rate to initialize
     function initialize(ExchangeRate storage s_self, uint256 exchangeRateUD18) internal {
         if (s_self.lastAdjTimestamp != 0) revert ExchangeRateAlreadyInitialized();
 
@@ -20,6 +24,11 @@ library ExchangeRateLibrary {
         s_self.lastAdjTimestamp = block.timestamp;
     }
 
+    /// @notice Adjusts the exchange rate towards a target, capped by a maximum adjustment ratio per block.
+    /// @param s_self The exchange rate to adjust
+    /// @param targetUD18 The target exchange rate in UD18
+    /// @param isNewTarget Whether the target is new (different from the last target)
+    /// @param maxAdjRatioUD18 The maximum adjustment ratio in UD18
     function adjust(ExchangeRate storage s_self, uint256 targetUD18, bool isNewTarget, uint256 maxAdjRatioUD18)
         internal
     {

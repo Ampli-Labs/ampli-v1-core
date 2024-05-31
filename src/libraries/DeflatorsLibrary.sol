@@ -5,6 +5,7 @@ import {mulDiv18} from "prb-math/Common.sol";
 import {UD60x18, powu} from "prb-math/UD60x18.sol";
 import {Constants} from "./Constants.sol";
 
+/// @notice Library for working with deflators.
 library DeflatorsLibrary {
     struct Deflators {
         uint256 interestUD18;
@@ -12,8 +13,11 @@ library DeflatorsLibrary {
         uint256 lastGrowthTimestamp;
     }
 
+    /// @notice Thrown when trying to initialize an already initialized deflators.
     error DeflatorsAlreadyInitialized();
 
+    /// @notice Initializes the deflators.
+    /// @param s_self The deflators to initialize
     function initialize(Deflators storage s_self) internal {
         if (s_self.lastGrowthTimestamp != 0) revert DeflatorsAlreadyInitialized();
 
@@ -22,6 +26,12 @@ library DeflatorsLibrary {
         s_self.lastGrowthTimestamp = block.timestamp;
     }
 
+    /// @notice Grows the deflators for the time elapsed since the last growth.
+    /// @param s_self The deflators to grow
+    /// @param interestRateUD18 The interest rate in UD18
+    /// @param feeRateUD18 The fee rate in UD18
+    /// @return interestDeflatorGrowthUD18 The growth of the interest deflator in UD18
+    /// @return interestAndFeeDeflatorGrowthUD18 The growth of the interest and fee deflator in UD18
     function grow(Deflators storage s_self, uint256 interestRateUD18, uint256 feeRateUD18)
         internal
         returns (uint256 interestDeflatorGrowthUD18, uint256 interestAndFeeDeflatorGrowthUD18)
@@ -42,6 +52,10 @@ library DeflatorsLibrary {
         }
     }
 
+    /// @notice Helper function to compound a rate.
+    /// @param rateUD18 The rate in UD18
+    /// @param power The power to raise the rate to
+    /// @return uint256 The compounded rate in UD18
     function _compoundRate(uint256 rateUD18, uint256 power) private pure returns (uint256) {
         return UD60x18.unwrap(powu(UD60x18.wrap(Constants.ONE_UD18 + rateUD18), power)) - Constants.ONE_UD18;
     }
