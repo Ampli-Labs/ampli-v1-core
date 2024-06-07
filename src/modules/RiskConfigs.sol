@@ -94,15 +94,6 @@ abstract contract RiskConfigs is IRiskConfigs {
     function setMaxDebtRatio(uint64 maxDebtRatioUD18) external riskGovernorOnly {
         if (maxDebtRatioUD18 > Constants.ONE_UD18) revert InvalidMaxDebtRatio();
 
-        address[] memory assets = s_assets;
-        for (uint256 i = 0; i < assets.length; i++) {
-            uint256 marginReqRatioUD18 = s_assetRiskParams[assets[i]].marginReqRatioUD18;
-
-            if (marginReqRatioUD18 != 0 && marginReqRatioUD18 + maxDebtRatioUD18 < Constants.ONE_UD18) {
-                revert InvalidMaxDebtRatio();
-            }
-        }
-
         s_riskParams.maxDebtRatioUD18 = maxDebtRatioUD18;
 
         emit MaxDebtRatioUpdated(maxDebtRatioUD18);
@@ -122,10 +113,9 @@ abstract contract RiskConfigs is IRiskConfigs {
     /// @inheritdoc IRiskConfigs
     function setAssetMarginReqRatio(address asset, uint64 marginReqRatioUD18) external riskGovernorOnly {
         // only allow margin requirement if oracle is set, and must be [(1 - maxDebtRatio), 1]
-        if (
-            address(s_assetRiskParams[asset].oracle) == address(0) || marginReqRatioUD18 > Constants.ONE_UD18
-                || marginReqRatioUD18 + s_riskParams.maxDebtRatioUD18 < Constants.ONE_UD18
-        ) revert InvalidAssetMarginReqRatio();
+        if (address(s_assetRiskParams[asset].oracle) == address(0) || marginReqRatioUD18 > Constants.ONE_UD18) {
+            revert InvalidAssetMarginReqRatio();
+        }
 
         s_assetRiskParams[asset].marginReqRatioUD18 = marginReqRatioUD18;
 
