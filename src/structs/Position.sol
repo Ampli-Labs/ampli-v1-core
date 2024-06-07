@@ -6,31 +6,34 @@ import {IRiskConfigs, IOracle} from "../interfaces/IRiskConfigs.sol";
 import {Fungible} from "../types/Fungible.sol";
 import {NonFungible} from "../types/NonFungible.sol";
 
+/// @notice Struct for representing fungible asset.
+struct FungibleAsset {
+    uint256 index; // one-based index of the fungible in the fungibles array.
+    uint256 balance;
+}
+
+/// @notice Struct for representing non-fungible asset.
+struct NonFungibleAsset {
+    uint256 index; // one-based index of the non-fungible in the non-fungibles array.
+    uint256[] items;
+    mapping(uint256 => uint256) itemIndices; // one-based index of the item in the items array.
+}
+
+/// @notice Struct for representing position.
+struct Position {
+    address owner;
+    address originator;
+    uint256 realDebt; // sum of outstanding debts deflated to a common point in time.
+    Fungible[] fungibles;
+    mapping(Fungible => FungibleAsset) fungibleAssets;
+    NonFungible[] nonFungibles;
+    mapping(NonFungible => NonFungibleAsset) nonFungibleAssets;
+}
+
+using PositionLibrary for Position global;
+
 /// @notice Library for working with positions.
 library PositionLibrary {
-    struct FungibleAsset {
-        uint256 index; // one-based index of the fungible in the fungibles array.
-        uint256 balance;
-    }
-
-    struct NonFungibleAsset {
-        uint256 index; // one-based index of the non-fungible in the non-fungibles array.
-        uint256[] items;
-        mapping(uint256 => uint256) itemIndices; // one-based index of the item in the items array.
-    }
-
-    struct Position {
-        address owner;
-        address originator;
-        uint256 realDebt; // sum of outstanding debts deflated to a common point in time.
-        Fungible[] fungibles;
-        mapping(Fungible => FungibleAsset) fungibleAssets;
-        NonFungible[] nonFungibles;
-        mapping(NonFungible => NonFungibleAsset) nonFungibleAssets;
-    }
-
-    using PositionLibrary for PositionLibrary.Position;
-
     /// @notice Thrown when trying to open an already opened position.
     error PositionAlreadyExists();
 

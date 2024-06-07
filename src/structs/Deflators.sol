@@ -3,16 +3,19 @@ pragma solidity 0.8.24;
 
 import {mulDiv18} from "prb-math/Common.sol";
 import {UD60x18, powu} from "prb-math/UD60x18.sol";
-import {Constants} from "./Constants.sol";
+import {Constants} from "../utils/Constants.sol";
+
+/// @notice Struct for representing deflators.
+struct Deflators {
+    uint256 interestUD18;
+    uint256 interestAndFeeUD18;
+    uint256 lastGrowthTimestamp;
+}
+
+using DeflatorsLibrary for Deflators global;
 
 /// @notice Library for working with deflators.
 library DeflatorsLibrary {
-    struct Deflators {
-        uint256 interestUD18;
-        uint256 interestAndFeeUD18;
-        uint256 lastGrowthTimestamp;
-    }
-
     /// @notice Thrown when trying to initialize an already initialized deflators.
     error DeflatorsAlreadyInitialized();
 

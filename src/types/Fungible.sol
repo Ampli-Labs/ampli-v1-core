@@ -7,6 +7,7 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 type Fungible is address;
 
 using {equals as ==} for Fungible global;
+using FungibleLibrary for Fungible global;
 
 /// @notice Compares two fungibles for equality.
 /// @param a The first fungible

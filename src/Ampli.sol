@@ -8,17 +8,17 @@ import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {IAmpli} from "./interfaces/IAmpli.sol";
 import {IUnlockCallback} from "./interfaces/callbacks/IUnlockCallback.sol";
-import {Constants} from "./libraries/Constants.sol";
-import {DeflatorsLibrary} from "./libraries/DeflatorsLibrary.sol";
-import {ExchangeRateLibrary} from "./libraries/ExchangeRateLibrary.sol";
-import {LockLibrary} from "./libraries/LockLibrary.sol";
-import {PositionLibrary} from "./libraries/PositionLibrary.sol";
 import {BaseHook, IPoolManager, Hooks, PoolKey, BalanceDelta} from "./modules/externals/BaseHook.sol";
 import {FungibleToken} from "./modules/FungibleToken.sol";
 import {NonFungibleTokenReceiver} from "./modules/NonFungibleTokenReceiver.sol";
 import {RiskConfigs, IRiskGovernor} from "./modules/RiskConfigs.sol";
+import {Deflators} from "./structs/Deflators.sol";
+import {ExchangeRate} from "./structs/ExchangeRate.sol";
+import {Lock} from "./structs/Lock.sol";
+import {Position} from "./structs/Position.sol";
 import {Fungible, FungibleLibrary} from "./types/Fungible.sol";
 import {NonFungible, NonFungibleLibrary} from "./types/NonFungible.sol";
+import {Constants} from "./utils/Constants.sol";
 
 /// @notice The Ampli protocol contract.
 contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, RiskConfigs {
@@ -35,12 +35,6 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
 
     using PoolIdLibrary for PoolKey;
     using StateLibrary for IPoolManager;
-    using LockLibrary for LockLibrary.Lock;
-    using DeflatorsLibrary for DeflatorsLibrary.Deflators;
-    using ExchangeRateLibrary for ExchangeRateLibrary.ExchangeRate;
-    using PositionLibrary for PositionLibrary.Position;
-    using FungibleLibrary for Fungible;
-    using NonFungibleLibrary for NonFungible;
 
     /// @notice Throws if the function is called via a delegate call.
     error NoDelegateCall();
@@ -49,14 +43,14 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
     address private immutable s_self;
     PoolKey private s_poolKey;
 
-    LockLibrary.Lock private s_lock;
-    DeflatorsLibrary.Deflators private s_deflators;
-    ExchangeRateLibrary.ExchangeRate private s_exchangeRate;
+    Lock private s_lock;
+    Deflators private s_deflators;
+    ExchangeRate private s_exchangeRate;
 
     uint256 private s_deficit;
     uint256 private s_surplus;
     uint256 private s_lastPositionId;
-    mapping(uint256 => PositionLibrary.Position) private s_positions;
+    mapping(uint256 => Position) private s_positions;
     mapping(NonFungible => mapping(uint256 => uint256)) private s_nonFungibleItemPositions;
 
     /// @notice Modifier for functions that can not be called via a delegate call.
@@ -96,7 +90,7 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
 
         uint256[] memory checkedOutPositions = s_lock.checkedOutItems;
         for (uint256 i = 0; i < checkedOutPositions.length; i++) {
-            PositionLibrary.Position storage s_position = s_positions[checkedOutPositions[i]];
+            Position storage s_position = s_positions[checkedOutPositions[i]];
             (uint256 value, uint256 marginReq) =
                 s_position.appraise(this, Fungible.wrap(address(this)), s_exchangeRate.currentUD18);
             uint256 debt = s_position.nominalDebt(s_deflators.interestAndFeeUD18);
@@ -105,7 +99,7 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
                 revert PositionAtRisk(checkedOutPositions[i]);
             }
         }
-        delete s_lock.checkedOutItems;
+        s_lock.checkInAll();
 
         s_lock.lock();
     }
@@ -368,7 +362,7 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
     /// @param fungible The fungible to add
     /// @param amount The amount to add
     function _addFungible(uint256 positionId, Fungible fungible, uint256 amount) private {
-        PositionLibrary.Position storage s_globalPosition = s_positions[GLOBAL_POSITION_ID];
+        Position storage s_globalPosition = s_positions[GLOBAL_POSITION_ID];
         uint256 received = fungible.balanceOf(address(this)) - s_globalPosition.fungibleAssets[fungible].balance
             - (fungible == FungibleLibrary.NATIVE ? s_surplus : 0);
         if (received < amount) revert FungibleAmountNotRecieved();
@@ -382,7 +376,7 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
     /// @param fungible The fungible to remove
     /// @param amount The amount to remove
     function _removeFungible(uint256 positionId, Fungible fungible, uint256 amount) private {
-        PositionLibrary.Position storage s_position = s_positions[positionId];
+        Position storage s_position = s_positions[positionId];
         if (s_position.fungibleAssets[fungible].balance < amount) revert FungibleBalanceInsufficient();
 
         s_position.removeFungible(fungible, amount);

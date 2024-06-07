@@ -2,7 +2,7 @@
 pragma solidity 0.8.24;
 
 import {IRiskConfigs, IRiskGovernor, IOracle} from "../interfaces/IRiskConfigs.sol";
-import {Constants} from "../libraries/Constants.sol";
+import {Constants} from "../utils/Constants.sol";
 
 /// @notice Abstract contract for implementing risk configurations.
 abstract contract RiskConfigs is IRiskConfigs {

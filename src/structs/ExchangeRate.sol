@@ -3,14 +3,17 @@ pragma solidity 0.8.24;
 
 import {mulDiv18} from "prb-math/Common.sol";
 
+/// @notice Struct for representing exchange rate.
+struct ExchangeRate {
+    uint256 currentUD18;
+    uint256 previousUD18;
+    uint256 lastAdjTimestamp;
+}
+
+using ExchangeRateLibrary for ExchangeRate global;
+
 /// @notice Library for working with exchange rate.
 library ExchangeRateLibrary {
-    struct ExchangeRate {
-        uint256 currentUD18;
-        uint256 previousUD18;
-        uint256 lastAdjTimestamp;
-    }
-
     /// @notice Thrown when trying to initialize an already initialized exchange rate.
     error ExchangeRateAlreadyInitialized();
 

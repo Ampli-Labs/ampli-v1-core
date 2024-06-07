@@ -7,6 +7,7 @@ import {IERC721} from "forge-std/interfaces/IERC721.sol";
 type NonFungible is address;
 
 using {equals as ==} for NonFungible global;
+using NonFungibleLibrary for NonFungible global;
 
 /// @notice Compares two non-fungibles for equality.
 /// @param a The first non-fungible
