@@ -9,6 +9,7 @@ abstract contract RiskConfigs is IRiskConfigs {
     struct RiskParams {
         InterestMode interestMode;
         uint32 feeRateUD18;
+        uint40 maxInterestRateUD18;
         uint64 maxDebtRatioUD18;
         uint64 maxExchangeRateAdjRatioUD18;
     }
@@ -63,6 +64,15 @@ abstract contract RiskConfigs is IRiskConfigs {
     }
 
     /// @inheritdoc IRiskConfigs
+    function setFeeRate(uint32 feeRateUD18) external riskGovernorOnly {
+        if (feeRateUD18 > Constants.ONE_BILLIONTH_UD18) revert InvalidFeeRate();
+
+        s_riskParams.feeRateUD18 = feeRateUD18;
+
+        emit FeeRateUpdated(feeRateUD18);
+    }
+
+    /// @inheritdoc IRiskConfigs
     function setInterestMode(InterestMode interestMode_) external riskGovernorOnly {
         s_riskParams.interestMode = interestMode_;
 
@@ -70,12 +80,14 @@ abstract contract RiskConfigs is IRiskConfigs {
     }
 
     /// @inheritdoc IRiskConfigs
-    function setFeeRate(uint32 feeRateUD18) external riskGovernorOnly {
-        if (feeRateUD18 > Constants.ONE_BILLIONTH_UD18) revert InvalidFeeRate();
+    function setMaxInterestRate(uint40 maxInterestRateUD18) external riskGovernorOnly {
+        if (maxInterestRateUD18 == 0 || maxInterestRateUD18 > Constants.ONE_HUNDRED_MILLIONTH_UD18) {
+            revert InvalidMaxInterestRate();
+        }
 
-        s_riskParams.feeRateUD18 = feeRateUD18;
+        s_riskParams.maxInterestRateUD18 = maxInterestRateUD18;
 
-        emit FeeRateUpdated(feeRateUD18);
+        emit MaxInterestRateUpdated(maxInterestRateUD18);
     }
 
     /// @inheritdoc IRiskConfigs
@@ -154,13 +166,18 @@ abstract contract RiskConfigs is IRiskConfigs {
     }
 
     /// @inheritdoc IRiskConfigs
+    function feeRate() public view returns (uint32) {
+        return s_riskParams.feeRateUD18;
+    }
+
+    /// @inheritdoc IRiskConfigs
     function interestMode() public view returns (InterestMode) {
         return s_riskParams.interestMode;
     }
 
     /// @inheritdoc IRiskConfigs
-    function feeRate() public view returns (uint32) {
-        return s_riskParams.feeRateUD18;
+    function maxInterestRate() public view returns (uint40) {
+        return s_riskParams.maxInterestRateUD18;
     }
 
     /// @inheritdoc IRiskConfigs
