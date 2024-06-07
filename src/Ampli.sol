@@ -385,15 +385,7 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
 
     /// @notice Helper function to disburse interest to active liquidity providers, as frequently as each block.
     function _disburseInterest() private {
-        InterestMode interestMode = interestMode();
-        uint256 exchangeRateUD18 = s_exchangeRate.currentUD18;
-        uint256 annualInterestRateUD18 = (
-            interestMode == InterestMode.Intensified
-                ? mulDiv18(exchangeRateUD18, exchangeRateUD18)
-                : (interestMode == InterestMode.Normal ? exchangeRateUD18 : sqrt(exchangeRateUD18))
-        ) - Constants.ONE_UD18;
-        uint256 interestRateUD18 = annualInterestRateUD18 / Constants.SECONDS_PER_YEAR;
-        (uint256 interestDeflatorGrowthUD18,) = s_deflators.grow(interestRateUD18, feeRate());
+        (uint256 interestDeflatorGrowthUD18,) = s_deflators.grow(_calculateInterestRate(), feeRate());
 
         if (interestDeflatorGrowthUD18 > 0) {
             uint256 interest = mulDiv18(s_positions[GLOBAL_POSITION_ID].realDebt, interestDeflatorGrowthUD18);
@@ -416,9 +408,27 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
         s_exchangeRate.adjust(targetExchangeRateUD18, hasSqrtPriceChanged, maxExchangeRateAdjRatio());
     }
 
+    /// @notice Helper function to calculate the interest rate.
+    /// @return uint256 The interest rate in UD18
+    function _calculateInterestRate() private view returns (uint256) {
+        InterestMode interestMode = interestMode();
+        uint40 maxInterestRateUD18 = maxInterestRate();
+        uint256 exchangeRateUD18 = s_exchangeRate.currentUD18;
+
+        uint256 annualInterestRateUD18 = (
+            interestMode == InterestMode.Intensified
+                ? mulDiv18(exchangeRateUD18, exchangeRateUD18)
+                : (interestMode == InterestMode.Normal ? exchangeRateUD18 : sqrt(exchangeRateUD18))
+        ) - Constants.ONE_UD18;
+        uint256 interestRateUD18 = annualInterestRateUD18 / Constants.SECONDS_PER_YEAR;
+
+        return interestRateUD18 >= maxInterestRateUD18 ? maxInterestRateUD18 : interestRateUD18;
+    }
+
     /// @notice Helper function to calculate the amount to swap before fees.
     /// @param amount The amount to swap
     /// @param fee The fee in pips
+    /// @return uint128 The amount before fees
     function _amountBeforeFee(uint128 amount, uint24 fee) private pure returns (uint128) {
         uint256 amountBeforeFee = mulDiv(amount, Constants.ONE_PIPS, Constants.ONE_PIPS - fee) + 1; // lazy round up
         assert(amountBeforeFee < type(uint128).max);

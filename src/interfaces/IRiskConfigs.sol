@@ -20,13 +20,17 @@ interface IRiskConfigs {
     /// @param riskGovernor The new risk governor
     event RiskGovernorConfirmed(IRiskGovernor riskGovernor);
 
+    /// @notice Emitted when the fee rate is updated.
+    /// @param feeRateUD18 The new fee rate in UD18
+    event FeeRateUpdated(uint32 feeRateUD18);
+
     /// @notice Emitted when the interest mode is updated.
     /// @param interestMode The new interest mode
     event InterestModeUpdated(InterestMode interestMode);
 
-    /// @notice Emitted when the fee rate is updated.
-    /// @param feeRateUD18 The new fee rate in UD18
-    event FeeRateUpdated(uint32 feeRateUD18);
+    /// @notice Emitted when the maximum interest rate is updated.
+    /// @param maxInterestRateUD18 The new maximum interest rate in UD18
+    event MaxInterestRateUpdated(uint40 maxInterestRateUD18);
 
     /// @notice Emitted when the maximum debt ratio is updated.
     /// @param maxDebtRatioUD18 The new maximum debt ratio in UD18
@@ -56,6 +60,9 @@ interface IRiskConfigs {
     /// @notice Thrown when the fee rate is invalid.
     error InvalidFeeRate();
 
+    /// @notice Thrown when the maximum interest rate is invalid.
+    error InvalidMaxInterestRate();
+
     /// @notice Thrown when the maximum debt ratio is invalid.
     error InvalidMaxDebtRatio();
 
@@ -72,13 +79,17 @@ interface IRiskConfigs {
     /// @notice Confirms the next risk governor.
     function confirmRiskGovernor() external;
 
+    /// @notice Sets the fee rate.
+    /// @param feeRateUD18 The fee rate in UD18
+    function setFeeRate(uint32 feeRateUD18) external;
+
     /// @notice Sets the interest mode.
     /// @param interestMode The interest mode
     function setInterestMode(InterestMode interestMode) external;
 
-    /// @notice Sets the fee rate.
-    /// @param feeRateUD18 The fee rate in UD18
-    function setFeeRate(uint32 feeRateUD18) external;
+    /// @notice Sets the maximum interest rate.
+    /// @param maxInterestRateUD18 The maximum interest rate in UD18
+    function setMaxInterestRate(uint40 maxInterestRateUD18) external;
 
     /// @notice Sets the maximum debt ratio.
     /// @param maxDebtRatioUD18 The maximum debt ratio in UD18
@@ -99,13 +110,17 @@ interface IRiskConfigs {
     /// @param oracleData The oracle data
     function setAssetOracle(address asset, IOracle oracle, bytes calldata oracleData) external;
 
+    /// @notice Gets the fee rate.
+    /// @return feeRateUD18 The fee rate in UD18
+    function feeRate() external view returns (uint32 feeRateUD18);
+
     /// @notice Gets the interest mode.
     /// @return interestMode The interest mode
     function interestMode() external view returns (InterestMode interestMode);
 
-    /// @notice Gets the fee rate.
-    /// @return feeRateUD18 The fee rate in UD18
-    function feeRate() external view returns (uint32 feeRateUD18);
+    /// @notice Gets the maximum interest rate.
+    /// @return maxInterestRateUD18 The maximum interest rate in UD18
+    function maxInterestRate() external view returns (uint40 maxInterestRateUD18);
 
     /// @notice Gets the maximum debt ratio.
     /// @return maxDebtRatioUD18 The maximum debt ratio in UD18
