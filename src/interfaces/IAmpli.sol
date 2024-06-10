@@ -198,4 +198,54 @@ interface IAmpli is IERC20, IERC721TokenReceiver, IRiskConfigs {
     /// @param recipient The recipient of the surplus
     /// @param amount The amount to collect
     function collect(address recipient, uint256 amount) external;
+
+    /// @notice Gets the next position ID.
+    /// @return positionId The next position ID
+    function nextPositionId() external view returns (uint256);
+
+    /// @notice Gets the deficit of the protocol.
+    /// @return deficit The deficit of the protocol
+    function deficit() external view returns (uint256);
+
+    /// @notice Gets the surplus of the protocol.
+    /// @return surplus The surplus of the protocol
+    function surplus() external view returns (uint256);
+
+    /// @notice Gets the owner of a position.
+    /// @param positionId The position ID
+    /// @return owner The owner of the position
+    function ownerOf(uint256 positionId) external view returns (address owner);
+
+    /// @notice Gets the originator of a position.
+    /// @param positionId The position ID
+    /// @return originator The originator of the position
+    function originatorOf(uint256 positionId) external view returns (address originator);
+
+    /// @notice Gets the balance of a fungible in a position.
+    /// @param positionId The position ID
+    /// @param fungible The fungible
+    /// @return balance The balance of the fungible
+    function balanceOf(uint256 positionId, Fungible fungible) external view returns (uint256 balance);
+
+    /// @notice Gets the items count of a non-fungible in a position.
+    /// @param positionId The position ID
+    /// @param nonFungible The non-fungible
+    /// @return count The items count of the non-fungible
+    function itemsCountOf(uint256 positionId, NonFungible nonFungible) external view returns (uint256 count);
+
+    /// @notice Gets the position ID of a non-fungible item.
+    /// @param nonFungible The non-fungible
+    /// @param item The item
+    /// @return positionId The position ID of the non-fungible item
+    function positionOf(NonFungible nonFungible, uint256 item) external view returns (uint256 positionId);
+
+    /// @notice Gets the global balance of a fungible.
+    /// @param fungible The fungible
+    /// @return balance The global balance of the fungible
+    function globalBalanceOf(Fungible fungible) external view returns (uint256 balance);
+
+    /// @notice Gets the global items count of a non-fungible.
+    /// @param nonFungible The non-fungible
+    /// @return count The global items count of the non-fungible
+    function globalItemsCountOf(NonFungible nonFungible) external view returns (uint256 count);
 }

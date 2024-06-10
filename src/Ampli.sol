@@ -43,7 +43,7 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
     address private immutable s_self;
     PoolKey private s_poolKey;
 
-    Lock private s_lock;
+    Lock internal s_lock;
     Deflators private s_deflators;
     ExchangeRate private s_exchangeRate;
 
@@ -245,11 +245,11 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
 
     /// @inheritdoc IAmpli
     function settle() external noDelegateCall {
-        uint256 deficit = s_deficit;
+        uint256 deficit_ = s_deficit;
 
-        if (deficit > 0) {
+        if (deficit_ > 0) {
             uint256 balance = balanceOf(msg.sender);
-            uint256 amount = balance >= deficit ? deficit : balance; // settle as much as possible
+            uint256 amount = balance >= deficit_ ? deficit_ : balance; // settle as much as possible
 
             s_deficit -= amount;
             _burn(msg.sender, amount);
@@ -261,10 +261,10 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
     /// @inheritdoc IAmpli
     function collect(address recipient, uint256 amount) external noDelegateCall riskGovernorOnly {
         if (s_deficit == 0) {
-            uint256 surplus = s_surplus;
+            uint256 surplus_ = s_surplus;
 
-            amount = amount == 0 ? surplus : amount; // collect as much as possible
-            if (surplus < amount) revert InsufficientSurplus();
+            amount = amount == 0 ? surplus_ : amount; // collect as much as possible
+            if (surplus_ < amount) revert InsufficientSurplus();
 
             s_surplus -= amount;
             FungibleLibrary.NATIVE.transfer(recipient, amount);
@@ -355,6 +355,56 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
         }
 
         return (this.afterSwap.selector, 0);
+    }
+
+    /// @inheritdoc IAmpli
+    function nextPositionId() public view returns (uint256) {
+        return s_lastPositionId + 1;
+    }
+
+    /// @inheritdoc IAmpli
+    function deficit() public view returns (uint256) {
+        return s_deficit;
+    }
+
+    /// @inheritdoc IAmpli
+    function surplus() public view returns (uint256) {
+        return s_surplus;
+    }
+
+    /// @inheritdoc IAmpli
+    function ownerOf(uint256 positionId) public view returns (address) {
+        return s_positions[positionId].owner;
+    }
+
+    /// @inheritdoc IAmpli
+    function originatorOf(uint256 positionId) public view returns (address) {
+        return s_positions[positionId].originator;
+    }
+
+    /// @inheritdoc IAmpli
+    function balanceOf(uint256 positionId, Fungible fungible) public view returns (uint256) {
+        return s_positions[positionId].fungibleAssets[fungible].balance;
+    }
+
+    /// @inheritdoc IAmpli
+    function itemsCountOf(uint256 positionId, NonFungible nonFungible) public view returns (uint256) {
+        return s_positions[positionId].nonFungibleAssets[nonFungible].items.length;
+    }
+
+    /// @inheritdoc IAmpli
+    function positionOf(NonFungible nonFungible, uint256 item) public view returns (uint256) {
+        return s_nonFungibleItemPositions[nonFungible][item];
+    }
+
+    /// @inheritdoc IAmpli
+    function globalBalanceOf(Fungible fungible) public view returns (uint256) {
+        return s_positions[GLOBAL_POSITION_ID].fungibleAssets[fungible].balance;
+    }
+
+    /// @inheritdoc IAmpli
+    function globalItemsCountOf(NonFungible nonFungible) public view returns (uint256) {
+        return s_positions[GLOBAL_POSITION_ID].nonFungibleAssets[nonFungible].items.length;
     }
 
     /// @notice Helper function to add some amount of a fungible to a position.
