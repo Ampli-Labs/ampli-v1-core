@@ -196,7 +196,7 @@ contract Ampli is IAmpli, BaseHook, FungibleToken, NonFungibleTokenReceiver, Ris
     function repay(uint256 positionId, uint256 amount) external noDelegateCall {
         if (msg.sender != s_positions[positionId].owner) revert NotOwner();
 
-        _burn(msg.sender, amount);
+        _burn(address(this), amount);
         uint256 realAmount = mulDiv(amount, Constants.ONE_UD18, s_deflators.interestAndFeeUD18);
         s_positions[positionId].realDebt -= realAmount; // underflow desired
         unchecked {
